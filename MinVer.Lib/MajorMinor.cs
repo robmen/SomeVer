@@ -30,7 +30,7 @@ public class MajorMinor
 
     public static string ValidValues => "1.0, 1.1, 2.0, etc.";
 
-    public static bool TryParse(string value, [NotNullWhen(returnValue: true)] out MajorMinor? majorMinor)
+    public static bool TryParse(string? value, [NotNullWhen(returnValue: true)] out MajorMinor? majorMinor)
     {
         majorMinor = null;
 
@@ -39,7 +39,7 @@ public class MajorMinor
             return false;
         }
 
-        var numbers = value.Split('.');
+        var numbers = value!.Split('.');
 
         var minor = 0;
 

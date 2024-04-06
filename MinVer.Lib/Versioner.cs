@@ -6,14 +6,38 @@ public static class Versioner
 {
     public static Version GetVersion(string workDir, string tagPrefix, MajorMinor minMajorMinor, string buildMeta, VersionPart autoIncrement, IEnumerable<string> defaultPreReleaseIdentifiers, bool ignoreHeight, ILogger log)
     {
+        var (calculatedVersion, _) = GetVersionAndCandidate(workDir, tagPrefix, minMajorMinor, buildMeta, autoIncrement, defaultPreReleaseIdentifiers, ignoreHeight, includeDefaultPreReleaseIdentifiersWithPrereleases: false, log);
+
+        return calculatedVersion;
+    }
+
+    public static VersionData GetVersionData(string workDir, string tagPrefix, MajorMinor minMajorMinor, string buildMeta, VersionPart autoIncrement, IEnumerable<string> defaultPreReleaseIdentifiers, bool ignoreHeight, bool includeDefaultPreReleaseIdentifiersWithPrereleases, ILogger log)
+    {
+        var (calculatedVersion, candidate) = GetVersionAndCandidate(workDir, tagPrefix, minMajorMinor, buildMeta, autoIncrement, defaultPreReleaseIdentifiers, ignoreHeight, includeDefaultPreReleaseIdentifiersWithPrereleases, log);
+
+        return new VersionData(
+            calculatedVersion.ToString(),
+            calculatedVersion.Major,
+            calculatedVersion.Minor,
+            calculatedVersion.Patch,
+            calculatedVersion.Release,
+            candidate?.Height ?? 0,
+            candidate?.FullHeight ?? 0,
+            candidate?.Commit.Sha ?? string.Empty,
+            candidate?.Commit.ShortSha ?? string.Empty);
+    }
+
+    private static (Version, Candidate?) GetVersionAndCandidate(string workDir, string tagPrefix, MajorMinor minMajorMinor, string buildMeta, VersionPart autoIncrement, IEnumerable<string> defaultPreReleaseIdentifiers, bool ignoreHeight, bool includeDefaultPreReleaseIdentifiersWithPrereleases, ILogger log)
+    {
         log = log ?? throw new ArgumentNullException(nameof(log));
 
         var defaultPreReleaseIdentifiersList = defaultPreReleaseIdentifiers.ToList();
 
-        var (version, height) = GetVersion(workDir, tagPrefix, defaultPreReleaseIdentifiersList, log);
+        var (version, candidate) = GetCandidate(workDir, tagPrefix, defaultPreReleaseIdentifiersList, log);
+        var height = candidate?.Height;
 
         _ = height.HasValue && ignoreHeight && log.IsDebugEnabled && log.Debug("Ignoring height.");
-        version = !height.HasValue || ignoreHeight ? version : version.WithHeight(height.Value, autoIncrement, defaultPreReleaseIdentifiersList);
+        version = !height.HasValue || ignoreHeight ? version : version.WithHeight(height.Value, autoIncrement, defaultPreReleaseIdentifiersList, includeDefaultPreReleaseIdentifiersWithPrereleases);
 
         version = version.AddBuildMetadata(buildMeta);
 
@@ -25,10 +49,10 @@ public static class Versioner
 
         _ = log.IsInfoEnabled && log.Info($"Calculated version {calculatedVersion}.");
 
-        return calculatedVersion;
+        return (calculatedVersion, candidate);
     }
 
-    private static (Version Version, int? Height) GetVersion(string workDir, string tagPrefix, List<string> defaultPreReleaseIdentifiers, ILogger log)
+    private static (Version, Candidate?) GetCandidate(string workDir, string tagPrefix, List<string> defaultPreReleaseIdentifiers, ILogger log)
     {
         if (!Git.IsWorkingDirectory(workDir, log))
         {
@@ -50,7 +74,9 @@ public static class Versioner
 
         var tags = Git.GetTags(workDir, log);
 
-        var orderedCandidates = GetCandidates(head, tags, tagPrefix, defaultPreReleaseIdentifiers, log)
+        var tagsAndVersions = GetOrderedTagsAndVersions(tags, tagPrefix, log);
+
+        var orderedCandidates = GetCandidates(head, tagsAndVersions, defaultPreReleaseIdentifiers, log)
             .OrderBy(candidate => candidate.Version)
             .ThenByDescending(candidate => candidate.Index).ToList();
 
@@ -71,40 +97,23 @@ public static class Versioner
         _ = string.IsNullOrEmpty(selectedCandidate.Tag) && log.IsInfoEnabled && log.Info($"No commit found with a valid SemVer 2.0 version{(string.IsNullOrEmpty(tagPrefix) ? "" : $" prefixed with '{tagPrefix}'")}. Using default version {selectedCandidate.Version}.");
         _ = log.IsInfoEnabled && log.Info($"Using{(log.IsDebugEnabled && orderedCandidates.Count > 1 ? "    " : " ")}{selectedCandidate.ToString(tagWidth, versionWidth, heightWidth)}.");
 
-        return (selectedCandidate.Version, selectedCandidate.Height);
+        SetCandidateFullHeight(selectedCandidate, tagsAndVersions, log);
+
+        return (selectedCandidate.Version, selectedCandidate);
     }
 
-    private static List<Candidate> GetCandidates(Commit head, IEnumerable<(string Name, string Sha)> tags, string tagPrefix, IReadOnlyCollection<string> defaultPreReleaseIdentifiers, ILogger log)
+    private static List<Candidate> GetCandidates(Commit head, IEnumerable<(string Name, string Sha, Version Version)> tagsAndVersions, IReadOnlyCollection<string> defaultPreReleaseIdentifiers, ILogger log)
     {
-        var tagsAndVersions = new List<(string Name, string Sha, Version Version)>();
-
-        foreach (var (name, sha) in tags)
-        {
-            if (Version.TryParse(name, out var version, tagPrefix))
-            {
-                tagsAndVersions.Add((name, sha, version));
-            }
-            else
-            {
-                _ = log.IsDebugEnabled && log.Debug($"Ignoring non-version tag {{ Name: {name}, Sha: {sha} }}.");
-            }
-        }
-
-        tagsAndVersions =
-        [
-            .. tagsAndVersions
-                .OrderBy(tagAndVersion => tagAndVersion.Version)
-                .ThenBy(tagsAndVersion => tagsAndVersion.Name),
-        ];
-
         var itemsToCheck = new Stack<(Commit Commit, int Height, Commit? Child)>();
         itemsToCheck.Push((head, 0, null));
 
         var checkedShas = new HashSet<string>();
         var candidates = new List<Candidate>();
 
-        while (itemsToCheck.TryPop(out var item))
+        while (itemsToCheck.Count > 0)
         {
+            var item = itemsToCheck.Pop();
+
             _ = item.Child != null && log.IsTraceEnabled && log.Trace($"Checking parents of commit {item.Child}...");
             _ = log.IsTraceEnabled && log.Trace($"Checking commit {item.Commit} (height {item.Height})...");
 
@@ -156,17 +165,111 @@ public static class Versioner
         return candidates;
     }
 
+    private static List<(string Name, string Sha, Version Version)> GetOrderedTagsAndVersions(IEnumerable<(string Name, string Sha)> tags, string tagPrefix, ILogger log)
+    {
+        var tagsAndVersions = new List<(string Name, string Sha, Version Version)>();
+
+        foreach (var (name, sha) in tags)
+        {
+            if (Version.TryParse(name, out var version, tagPrefix))
+            {
+                tagsAndVersions.Add((name, sha, version));
+            }
+            else
+            {
+                _ = log.IsDebugEnabled && log.Debug($"Ignoring non-version tag {{ Name: {name}, Sha: {sha} }}.");
+            }
+        }
+
+        tagsAndVersions =
+        [
+            .. tagsAndVersions
+                .OrderBy(tagAndVersion => tagAndVersion.Version)
+                .ThenBy(tagsAndVersion => tagsAndVersion.Name),
+        ];
+        return tagsAndVersions;
+    }
+
+    private static void SetCandidateFullHeight(Candidate candidate, IEnumerable<(string Name, string Sha, Version Version)> tagsAndVersions, ILogger log)
+    {
+        var itemsToCheck = new Stack<(Commit Commit, int Height, Commit? Child)>();
+        itemsToCheck.Push((candidate.Commit, 0, null));
+
+        var checkedShas = new HashSet<string>();
+        var releasedTagsAndVersions = tagsAndVersions.Where(tagAndVersion => !tagAndVersion.Version.IsPrerelease).ToList();
+        var rootHeight = 0;
+
+        _ = log.IsDebugEnabled && log.Debug($"Calculating candidate full height...");
+
+        while (itemsToCheck.Count > 0)
+        {
+            var item = itemsToCheck.Pop();
+
+            _ = item.Child != null && log.IsTraceEnabled && log.Trace($"Checking parents of commit {item.Child}...");
+            _ = log.IsTraceEnabled && log.Trace($"Checking commit {item.Commit} (height {item.Height})...");
+
+            if (!checkedShas.Add(item.Commit.Sha))
+            {
+                _ = log.IsTraceEnabled && log.Trace($"Commit {item.Commit} already checked. Abandoning path.");
+                continue;
+            }
+
+            var releasedTagAndVersion = releasedTagsAndVersions.FirstOrDefault(tagAndVersion => tagAndVersion.Sha == item.Commit.Sha);
+
+            if (!string.IsNullOrEmpty(releasedTagAndVersion.Name))
+            {
+                candidate.SetFullHeight(candidate.Height + item.Height);
+                break;
+            }
+
+            _ = log.IsTraceEnabled && log.Trace($"Found no version tags on commit {item.Commit}.");
+
+            if (item.Commit.Parents.Count == 0)
+            {
+                _ = log.IsTraceEnabled && log.Trace($"Found root commit {item}.");
+                rootHeight = Math.Max(rootHeight, item.Height);
+
+                continue;
+            }
+
+            if (log.IsTraceEnabled)
+            {
+                _ = log.Trace($"Commit {item.Commit} has {item.Commit.Parents.Count} parent(s):");
+                foreach (var parent in item.Commit.Parents)
+                {
+                    _ = log.Trace($"- {parent}");
+                }
+            }
+
+            foreach (var parent in ((IEnumerable<Commit>)item.Commit.Parents).Reverse())
+            {
+                itemsToCheck.Push((parent, item.Height + 1, item.Commit));
+            }
+        }
+
+        if (candidate.FullHeight == -1)
+        {
+            candidate.SetFullHeight(candidate.Height + rootHeight);
+        }
+
+        _ = log.IsDebugEnabled && log.Debug($"{checkedShas.Count:N0} commits checked.");
+    }
+
     private sealed class Candidate(Commit commit, int height, string tag, Version version, int index)
     {
         public Commit Commit { get; } = commit;
 
         public int Height { get; } = height;
 
+        public int FullHeight { get; private set; } = -1;
+
         public string Tag { get; } = tag;
 
         public Version Version { get; } = version;
 
         public int Index { get; } = index;
+
+        public void SetFullHeight(int fullHeight) => this.FullHeight = fullHeight;
 
         public override string ToString() => this.ToString(0, 0, 0);
 

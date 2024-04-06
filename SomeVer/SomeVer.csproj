@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net472;net6.0</TargetFrameworks>
+    <LangVersion>default</LangVersion>
+
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageIcon>SomeVer.png</PackageIcon>
+    <PackageType>MSBuildSdk</PackageType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="SomeVer.png" PackagePath="\" />
+    <Content Include="Sdk\*.*" PackagePath="Sdk" />
+    <Content Include="build\*.*" PackagePath="build" />
+    <Content Include="buildMultiTargeting\*.*" PackagePath="buildMultiTargeting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SomeVerTasks\SomeVerTasks.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="build\SomeVer.props">
+      <PackagePath>buildMultiTargeting</PackagePath>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="IncludeTaskBinaries" AfterTargets="Build">
+    <ItemGroup>
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\MinVer.Lib.dll" PackagePath="tools" />
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\SomeVerTasks.dll" PackagePath="tools" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup>
+    <SomeVerTagPrefix>v</SomeVerTagPrefix>
+    <SomeVerDefaultPreReleaseIdentifiers>dev</SomeVerDefaultPreReleaseIdentifiers>
+    <SomeVerTasksPath Condition=" '$(MSBuildRuntimeType)' == 'Core' ">$(MSBuildThisFileDirectory)..\SomeVerTasks\bin\$(Configuration)\net6.0\SomeVerTasks.dll</SomeVerTasksPath>
+    <SomeVerTasksPath Condition=" '$(SomeVerTasksPath)' == '' ">$(MSBuildThisFileDirectory)..\SomeVerTasks\bin\$(Configuration)\net472\SomeVerTasks.dll</SomeVerTasksPath>
+  </PropertyGroup>
+  <Import Project="build\SomeVer.props" Condition=" '$(NCrunch)'=='' " />
+  <Import Project="build\SomeVer.targets" Condition=" '$(NCrunch)'=='' " />
+
+</Project>
