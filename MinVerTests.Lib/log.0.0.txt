@@ -66,5 +66,15 @@ Trace: Commit 2 already checked. Abandoning path.
 Debug: 6 commits checked.
 Debug: Ignoring { Commit: 0, Tag: '',            Version: 0.0.0-alpha.0, Height: 2 }.
 Info:  Using    { Commit: 1, Tag: '1.0.0-foo.1', Version: 1.0.0-foo.1,   Height: 2 }.
+Debug: Calculating candidate full height...
+Trace: Checking commit 1 (height 0)...
+Trace: Found no version tags on commit 1.
+Trace: Commit 1 has 1 parent(s):
+Trace: - 0
+Trace: Checking parents of commit 1...
+Trace: Checking commit 0 (height 1)...
+Trace: Found no version tags on commit 0.
+Trace: Found root commit (0, 1, 1).
+Debug: 2 commits checked.
 Debug: The calculated version 1.0.0-foo.1.2 satisfies the minimum major minor 0.0.
 Info:  Calculated version 1.0.0-foo.1.2.

@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net472</TargetFrameworks>
+    <LangVersion>default</LangVersion>
+
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <DevelopmentDependency>true</DevelopmentDependency>
+
+    <Description>MSBuild SDK to bring minimalist versioning using Git tags to your build system.</Description>
+    <PackageProjectUrl>https://github.com/robmen/somever</PackageProjectUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageIcon>SomeVer.png</PackageIcon>
+    <PackageType>MSBuildSdk</PackageType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="SomeVer.png" PackagePath="\" />
+    <Content Include="Sdk\*.*" PackagePath="Sdk" />
+    <Content Include="build\*.*" PackagePath="build" />
+    <Content Include="buildMultiTargeting\*.*" PackagePath="buildMultiTargeting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SomeVerTasks\SomeVerTasks.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="IncludeTaskBinaries" AfterTargets="Build">
+    <ItemGroup>
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\MinVer.Lib.dll" PackagePath="tools" />
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\SomeVerTasks.dll" PackagePath="tools" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup>
+    <SomeVerTagPrefix>v</SomeVerTagPrefix>
+    <SomeVerDefaultPreReleaseIdentifiers>dev</SomeVerDefaultPreReleaseIdentifiers>
+
+    <SomeVerDetailed>low</SomeVerDetailed>
+    <SomeVerTasksPath Condition=" '$(MSBuildRuntimeType)' == 'Core' ">$(MSBuildThisFileDirectory)..\SomeVerTasks\bin\$(Configuration)\net6.0\SomeVerTasks.dll</SomeVerTasksPath>
+    <SomeVerTasksPath Condition=" '$(SomeVerTasksPath)' == '' ">$(MSBuildThisFileDirectory)..\SomeVerTasks\bin\$(Configuration)\net472\SomeVerTasks.dll</SomeVerTasksPath>
+  </PropertyGroup>
+  <Import Project="build\SomeVer.targets" Condition=" '$(NCrunch)'=='' " />
+
+</Project>

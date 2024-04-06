@@ -1,0 +1,25 @@
+name: release
+on:
+  push:
+    tags: ["*.*.*"]
+permissions: read-all
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/setup-dotnet@v4.0.0
+        with:
+          dotnet-version: 8.0.101
+      - uses: actions/checkout@v4.1.1
+      - env:
+          MINVER_VERSION: ${{ vars.MINVER_VERSION }}
+        run: ./build build
+      - name: push
+        env:
+          SOURCE: ${{ secrets.NUGET_PUSH_SOURCE }}
+          API_KEY: ${{ secrets.NUGET_PUSH_API_KEY }}
+        if: env.SOURCE != '' || env.API_KEY != ''
+        run: dotnet nuget push ./**/*.nupkg --source ${{ env.SOURCE }} --api-key ${{ env.API_KEY }}
