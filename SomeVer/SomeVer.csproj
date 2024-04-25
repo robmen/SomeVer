@@ -29,6 +29,7 @@
 
   <Target Name="IncludeTaskBinaries" AfterTargets="Build">
     <ItemGroup>
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\NuGet.Versioning.dll" PackagePath="tools" />
       <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\MinVer.Lib.dll" PackagePath="tools" />
       <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\SomeVerTasks.dll" PackagePath="tools" />
     </ItemGroup>
