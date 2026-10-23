@@ -14,6 +14,8 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <PackageIcon>SomeVer.png</PackageIcon>
     <PackageType>MSBuildSdk</PackageType>
+    <SomeVerTaskTargetFramework Condition="'$(MSBuildRuntimeType)' == 'Core'">net10.0</SomeVerTaskTargetFramework>
+    <SomeVerTaskTargetFramework Condition="'$(MSBuildRuntimeType)' != 'Core'">net472</SomeVerTaskTargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,10 +26,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SomeVerTasks\SomeVerTasks.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\SomeVerTasks\SomeVerTasks.csproj"
+                      PrivateAssets="all"
+                      ReferenceOutputAssembly="false"
+                      SetTargetFramework="TargetFramework=$(SomeVerTaskTargetFramework)" />
   </ItemGroup>
 
   <Target Name="IncludeTaskBinaries" BeforeTargets="_GetPackageFiles">
+    <MSBuild Projects="..\SomeVerTasks\SomeVerTasks.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework" />
     <ItemGroup>
       <Content Include="..\SomeVerTasks\bin\$(Configuration)\net472\NuGet.Versioning.dll" PackagePath="tools\net472\NuGet.Versioning.dll" />
       <Content Include="..\SomeVerTasks\bin\$(Configuration)\net472\MinVer.Lib.dll" PackagePath="tools\net472\MinVer.Lib.dll" />

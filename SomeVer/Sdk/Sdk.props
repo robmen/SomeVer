@@ -71,7 +71,7 @@
   <Target Name="CreateManifestResourceNames" />
 
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" Condition=" '$(MicrosoftCommonPropsHasBeenImported)' != 'true' "/>
-  <Import Project="..\build\SomeVer.props" />
+  <Import Project="..\build\SomeVer.props" Condition="'$(SomeVerPropsImported)' != 'true'" />
 
   <Import Project="$(CustomAfterSomeVerSdkProps)" Condition=" '$(CustomAfterSomeVerSdkProps)' != '' And Exists('$(CustomAfterSomeVerSdkProps)') " />
 

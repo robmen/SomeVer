@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading;
 using SimpleExec;
 
 namespace MinVerTests.Infra;
@@ -6,23 +7,37 @@ namespace MinVerTests.Infra;
 internal static class CommandEx
 {
     private static readonly ConcurrentDictionary<string, int> indices = new();
+    private static readonly TimeSpan commandTimeout = TimeSpan.FromMinutes(2);
 
     public static async Task<(string StandardOutput, string StandardError)> ReadLoggedAsync(string name, string args = "", string workingDirectory = "", IEnumerable<KeyValuePair<string, string>>? envVars = null, Func<int, bool>? handleExitCode = null)
     {
         envVars = (envVars ?? Enumerable.Empty<KeyValuePair<string, string>>()).ToList();
 
-        var result = await Command.ReadAsync(
-            name,
-            args,
-            workingDirectory,
-            configureEnvironment: env =>
+        (string StandardOutput, string StandardError) result;
+        using (var cancellationTokenSource = new CancellationTokenSource(commandTimeout))
+        {
+            try
             {
-                foreach (var (key, value) in envVars)
-                {
-                    env[key] = value;
-                }
-            },
-            handleExitCode: handleExitCode).ConfigureAwait(false);
+                result = await Command.ReadAsync(
+                    name,
+                    args,
+                    workingDirectory,
+                    configureEnvironment: env =>
+                    {
+                        foreach (var (key, value) in envVars)
+                        {
+                            env[key] = value;
+                        }
+                    },
+                    handleExitCode: handleExitCode,
+                    cancellationIgnoresProcessTree: false,
+                    cancellationToken: cancellationTokenSource.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException exception) when (cancellationTokenSource.IsCancellationRequested)
+            {
+                throw new TimeoutException($"Command '{name} {args}' exceeded the {commandTimeout} timeout in '{workingDirectory}'.", exception);
+            }
+        }
 
         int index;
 

@@ -91,7 +91,7 @@
     So import it when the managed targets do not get imported.
   -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.Managed.targets" Condition="'$(MSBuildAssemblyVersion)' >= '16.0' And '$(ManagedLanguageTargetsGotImported)' != 'true'" />
-  <Import Project="..\build\SomeVer.targets" />
+  <Import Project="..\build\SomeVer.targets" Condition="'$(SomeVerTargetsImported)' != 'true'" />
 
   <!-- Override stock CoreCompile target to do nothing but keep extensibility points -->
   <Target Name="CoreCompile"

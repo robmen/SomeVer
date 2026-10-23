@@ -2,6 +2,7 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <PropertyGroup>
+    <SomeVerTargetsImported>true</SomeVerTargetsImported>
     <MSBuildAllProjects Condition="'$(MSBuildToolsVersion)' != 'Current'">$(MSBuildAllProjects);$(MsBuildThisFileFullPath)</MSBuildAllProjects>
     <GenerateNuspecDependsOn>$(GenerateNuspecDependsOn);SomeVer</GenerateNuspecDependsOn>
     <GetPackageVersionDependsOn>$(GetPackageVersionDependsOn);SomeVer</GetPackageVersionDependsOn>
@@ -80,9 +81,7 @@
   </Target>
 
   <Target Name="SomeVerApplyVersionTemplates"
-          Inputs="@(VersionTemplate)"
-          Outputs="%(OutputPath)"
-          Condition="'$(DesignTimeBuild)' != 'true' AND '$(SomeVerSkip)' != 'true'">
+          Condition="'$(DesignTimeBuild)' != 'true' AND '$(SomeVerSkip)' != 'true' AND '@(VersionTemplate)' != ''">
     <PropertyGroup>
       <VersionTemplateText>$([System.IO.File]::ReadAllText('%(VersionTemplate.Identity)'))</VersionTemplateText>
       <VersionTemplateText>$(VersionTemplateText.Replace('{fileversion}', $(FileVersion)))</VersionTemplateText>
@@ -111,10 +110,17 @@
   </Target>
 
   <Target Name="SomeVerBuild"
-          BeforeTargets="BeforeCompile;GetAssemblyVersion;CoreCompile"
+          BeforeTargets="BeforeCompile;GetAssemblyVersion;CoreCompile;GenerateNuspec;GetPackageVersion"
           DependsOnTargets="SomeVer;SomeVerApplyVersionTemplates"
-          Condition="'$(DesignTimeBuild)' != 'true' AND '$(SomeVerSkip)' != 'true'" />
+          Condition="'$(DesignTimeBuild)' != 'true' AND '$(SomeVerSkip)' != 'true' AND '$(SomeVerVersion)' == ''" />
 
   <Target Name="SomeVerClean" BeforeTargets="Clean" DependsOnTargets="SomeVerInfo" Condition="'$(GeneratePackageOnBuild)' == 'true'" />
+
+  <Target Name="SomeVerReportBuildNumber"
+          AfterTargets="Build"
+          Condition=" '$(SomeVerReportBuildNumber)'=='true' ">
+    <Message Importance="$(SomeVerDetailed)" Text="Set build number: $(SomeVerVersion)"/>
+    <Message Importance="high" Text="##vso[build.updatebuildnumber]$(SomeVerVersion)"/>
+  </Target>
 
 </Project>

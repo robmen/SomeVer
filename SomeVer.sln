@@ -13,6 +13,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SomeVer", "SomeVer\SomeVer.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SomeVerTasks", "SomeVerTasks\SomeVerTasks.csproj", "{BBA72749-19A8-4566-83D0-E0B914E88C17}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SomeVerTests.Packages", "SomeVerTests.Packages\SomeVerTests.Packages.csproj", "{6D20B7DF-0B16-4AE2-AB67-AB0E1F014B06}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{BBA72749-19A8-4566-83D0-E0B914E88C17}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BBA72749-19A8-4566-83D0-E0B914E88C17}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BBA72749-19A8-4566-83D0-E0B914E88C17}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D20B7DF-0B16-4AE2-AB67-AB0E1F014B06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D20B7DF-0B16-4AE2-AB67-AB0E1F014B06}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D20B7DF-0B16-4AE2-AB67-AB0E1F014B06}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D20B7DF-0B16-4AE2-AB67-AB0E1F014B06}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
