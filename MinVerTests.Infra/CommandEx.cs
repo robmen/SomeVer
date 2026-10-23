@@ -11,7 +11,7 @@ internal static class CommandEx
 
     public static async Task<(string StandardOutput, string StandardError)> ReadLoggedAsync(string name, string args = "", string workingDirectory = "", IEnumerable<KeyValuePair<string, string>>? envVars = null, Func<int, bool>? handleExitCode = null)
     {
-        envVars = (envVars ?? Enumerable.Empty<KeyValuePair<string, string>>()).ToList();
+        envVars = [.. envVars ?? []];
 
         (string StandardOutput, string StandardError) result;
         using (var cancellationTokenSource = new CancellationTokenSource(commandTimeout))
