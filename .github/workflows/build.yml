@@ -30,9 +30,13 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Test MinVer
+        shell: cmd
+        run: dotnet test .\MinVerTests.Lib\ -c Release --disable-build-servers
+
       - name: Build SomeVer
         shell: cmd
-        run: build.cmd
+        run: dotnet build .\SomeVer\ -c Release -nologo --disable-build-servers
 
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v7.0.2
