@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net6.0;net472</TargetFrameworks>
+    <TargetFrameworks>net10.0;net472</TargetFrameworks>
     <LangVersion>default</LangVersion>
 
     <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -27,11 +27,13 @@
     <ProjectReference Include="..\SomeVerTasks\SomeVerTasks.csproj" PrivateAssets="all" />
   </ItemGroup>
 
-  <Target Name="IncludeTaskBinaries" AfterTargets="Build">
+  <Target Name="IncludeTaskBinaries" BeforeTargets="_GetPackageFiles">
     <ItemGroup>
-      <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\NuGet.Versioning.dll" PackagePath="tools" />
-      <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\MinVer.Lib.dll" PackagePath="tools" />
-      <Content Include="..\SomeVerTasks\bin\$(Configuration)\**\SomeVerTasks.dll" PackagePath="tools" />
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\net472\NuGet.Versioning.dll" PackagePath="tools\net472\NuGet.Versioning.dll" />
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\net472\MinVer.Lib.dll" PackagePath="tools\net472\MinVer.Lib.dll" />
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\net472\SomeVerTasks.dll" PackagePath="tools\net472\SomeVerTasks.dll" />
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\net10.0\MinVer.Lib.dll" PackagePath="tools\net10.0\MinVer.Lib.dll" />
+      <Content Include="..\SomeVerTasks\bin\$(Configuration)\net10.0\SomeVerTasks.dll" PackagePath="tools\net10.0\SomeVerTasks.dll" />
     </ItemGroup>
   </Target>
 
@@ -40,7 +42,7 @@
     <SomeVerDefaultPreReleaseIdentifiers>dev</SomeVerDefaultPreReleaseIdentifiers>
 
     <SomeVerDetailed>low</SomeVerDetailed>
-    <SomeVerTasksPath Condition=" '$(MSBuildRuntimeType)' == 'Core' ">$(MSBuildThisFileDirectory)..\SomeVerTasks\bin\$(Configuration)\net6.0\SomeVerTasks.dll</SomeVerTasksPath>
+    <SomeVerTasksPath Condition=" '$(MSBuildRuntimeType)' == 'Core' ">$(MSBuildThisFileDirectory)..\SomeVerTasks\bin\$(Configuration)\net10.0\SomeVerTasks.dll</SomeVerTasksPath>
     <SomeVerTasksPath Condition=" '$(SomeVerTasksPath)' == '' ">$(MSBuildThisFileDirectory)..\SomeVerTasks\bin\$(Configuration)\net472\SomeVerTasks.dll</SomeVerTasksPath>
   </PropertyGroup>
   <Import Project="build\SomeVer.targets" Condition=" '$(NCrunch)'=='' " />
