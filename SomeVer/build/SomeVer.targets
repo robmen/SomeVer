@@ -81,6 +81,7 @@
   </Target>
 
   <Target Name="SomeVerApplyVersionTemplates"
+          Outputs="%(VersionTemplate.OutputPath)"
           Condition="'$(DesignTimeBuild)' != 'true' AND '$(SomeVerSkip)' != 'true' AND '@(VersionTemplate)' != ''">
     <PropertyGroup>
       <VersionTemplateText>$([System.IO.File]::ReadAllText('%(VersionTemplate.Identity)'))</VersionTemplateText>

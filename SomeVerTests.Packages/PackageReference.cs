@@ -148,13 +148,52 @@ public static class PackageReference
             """
             <Project Sdk="SomeVer">
               <PropertyGroup><TargetFramework>net10.0</TargetFramework><SomeVerTagPrefix>v</SomeVerTagPrefix></PropertyGroup>
-              <ItemGroup><VersionTemplate Include="version.txt.template" OutputPath="$(MSBuildProjectDirectory)\generated.txt" /></ItemGroup>
+              <ItemGroup>
+                <VersionTemplate Include="version.txt.template" OutputPath="$(MSBuildProjectDirectory)\generated.txt" />
+                <VersionTemplate Include="resource.txt.template" OutputPath="$(MSBuildProjectDirectory)\resource.txt" />
+                <VersionTemplate Include="props.txt.template" OutputPath="$(MSBuildProjectDirectory)\props.txt" />
+              </ItemGroup>
             </Project>
             """).ConfigureAwait(true);
         await File.WriteAllTextAsync(Path.Combine(sdkConsumer, "version.txt.template"), "{packageversion}").ConfigureAwait(true);
+        await File.WriteAllTextAsync(Path.Combine(sdkConsumer, "resource.txt.template"), "resource={packageversion}").ConfigureAwait(true);
+        await File.WriteAllTextAsync(Path.Combine(sdkConsumer, "props.txt.template"), "props={packageversion}").ConfigureAwait(true);
         _ = await Sdk.DotNet($"restore \"{Path.Combine(sdkConsumer, "Version.verproj")}\" --source \"{feed}\" --packages \"{packages}\" -p:NuGetAudit=false", sdkConsumer, envVars: env).ConfigureAwait(true);
         _ = await Sdk.DotNet($"build \"{Path.Combine(sdkConsumer, "Version.verproj")}\" --no-restore --nologo", sdkConsumer, envVars: env).ConfigureAwait(true);
-        Assert.Equal("1.2.4-dev.1", (await File.ReadAllTextAsync(Path.Combine(sdkConsumer, "generated.txt")).ConfigureAwait(true)).TrimEnd('\r', '\n'));
+        await AssertSdkTemplates("1.2.4-dev.1").ConfigureAwait(true);
+
+        // Re-evaluating templates must not rewrite files whose content is unchanged.
+        var timestamp = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var outputNames = new[] { "generated.txt", "resource.txt", "props.txt" };
+        foreach (var name in outputNames)
+        {
+            File.SetLastWriteTimeUtc(Path.Combine(sdkConsumer, name), timestamp);
+        }
+
+        _ = await Sdk.DotNet($"build \"{Path.Combine(sdkConsumer, "Version.verproj")}\" --no-restore --nologo", sdkConsumer, envVars: env).ConfigureAwait(true);
+        await AssertSdkTemplates("1.2.4-dev.1").ConfigureAwait(true);
+        foreach (var name in outputNames)
+        {
+            Assert.Equal(timestamp, File.GetLastWriteTimeUtc(Path.Combine(sdkConsumer, name)));
+        }
+
+        // Git changes alone must refresh every output even when templates are untouched.
+        await Git.Commit(path).ConfigureAwait(true);
+        _ = await Sdk.DotNet($"build \"{Path.Combine(sdkConsumer, "Version.verproj")}\" --no-restore --nologo", sdkConsumer, envVars: env).ConfigureAwait(true);
+        await AssertSdkTemplates("1.2.4-dev.2").ConfigureAwait(true);
+        await Git.Tag(path, "v2.0.0").ConfigureAwait(true);
+        _ = await Sdk.DotNet($"build \"{Path.Combine(sdkConsumer, "Version.verproj")}\" --no-restore --nologo", sdkConsumer, envVars: env).ConfigureAwait(true);
+        await AssertSdkTemplates("2.0.0").ConfigureAwait(true);
+        await Git.Checkout(path, "HEAD^").ConfigureAwait(true);
+        _ = await Sdk.DotNet($"build \"{Path.Combine(sdkConsumer, "Version.verproj")}\" --no-restore --nologo", sdkConsumer, envVars: env).ConfigureAwait(true);
+        await AssertSdkTemplates("1.2.4-dev.1").ConfigureAwait(true);
+
+        async Task AssertSdkTemplates(string version)
+        {
+            Assert.Equal(version, (await File.ReadAllTextAsync(Path.Combine(sdkConsumer, "generated.txt")).ConfigureAwait(true)).TrimEnd('\r', '\n'));
+            Assert.Equal($"resource={version}", (await File.ReadAllTextAsync(Path.Combine(sdkConsumer, "resource.txt")).ConfigureAwait(true)).TrimEnd('\r', '\n'));
+            Assert.Equal($"props={version}", (await File.ReadAllTextAsync(Path.Combine(sdkConsumer, "props.txt")).ConfigureAwait(true)).TrimEnd('\r', '\n'));
+        }
 
         _ = Directory.CreateDirectory(hybridConsumer);
         await File.WriteAllTextAsync(Path.Combine(hybridConsumer, "global.json"), await File.ReadAllTextAsync(Path.Combine(sdkConsumer, "global.json")).ConfigureAwait(true)).ConfigureAwait(true);
